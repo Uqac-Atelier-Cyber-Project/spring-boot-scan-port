@@ -1,5 +1,8 @@
 package com.uqac.scan_port.model;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Represents the result of a port scan, containing information about an open port
  * and the associated application.
@@ -34,4 +37,21 @@ public class PortResult {
     public void setApplication(String application) {
         this.application = application;
     }
+
+    /**
+     * Converts this PortResult object to a JSON string.
+     *
+     * @return a JSON representation of the PortResult object
+     * @throws RuntimeException if JSON serialization fails
+     */
+    public String toJson() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(this);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize PortResult to JSON", e);
+        }
+    }
+
+
 }
