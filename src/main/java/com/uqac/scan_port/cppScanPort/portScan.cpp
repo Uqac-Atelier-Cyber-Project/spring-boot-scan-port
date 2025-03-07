@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
     std::string host = argv[1];
     int start_port = (argc > 2) ? std::stoi(argv[2]) : 1;
     int end_port = (argc > 3) ? std::stoi(argv[3]) : 65535;
-    int timeout_ms = (argc > 4) ? std::stoi(argv[4]) : 500;
+    int timeout_ms = (argc > 4) ? std::stoi(argv[4]) : 200;
 
     try {
         // Scanner les ports
