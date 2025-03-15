@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(ScanPort)
+project(PortScanner)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,13 +17,13 @@ endif()
 
 # Définir les sources
 set(SOURCES
-        main.cpp
+    portScan.cpp
 )
 
-# Créer l'exécutable
+# Créer l'exécutable port_scanner
 add_executable(port_scanner ${SOURCES})
 
-# Lier les bibliothèques
+# Lier les bibliothèques pour port_scanner
 target_link_libraries(port_scanner PRIVATE nlohmann_json::nlohmann_json)
 
 # Vérifier si nous sommes sur un système UNIX pour ajouter les bibliothèques réseau

@@ -1,24 +1,44 @@
 package com.uqac.scan_port.controller;
 
+import com.uqac.scan_port.dto.ServiceRequest;
 import com.uqac.scan_port.service.CppExecutionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
+@RequestMapping("/api")
 public class CppExecutionController {
-
-    @Autowired
-    private CppExecutionService cppExecutionService;
+    // Injection de dépendance
+    private final CppExecutionService cppExecutionService;
 
     /**
-     * Executes the C++ program with the specified IP address as a parameter.
-     * @param ip the IP address to scan.
-     * @return the output of the C++ program execution.
+     * Constructeur
+     * @param cppExecutionService
      */
-    @GetMapping("/execute-cpp")
-    public String executeCpp(@RequestParam String ip) {
-        return cppExecutionService.executeCppProgram(ip);
+    public CppExecutionController(CppExecutionService cppExecutionService) {
+        this.cppExecutionService = cppExecutionService;
+    }
+
+    /**
+     * Lance un scan de ports en C++ pour une adresse IP donnée
+     * @param request Requête de soumission
+     * @return Message de confirmation
+     */
+    @PostMapping("/execute-cpp")
+    public String executeCpp(@RequestBody ServiceRequest request) {
+        String scanId = UUID.randomUUID().toString(); // Génère un identifiant unique
+        cppExecutionService.executeCppProgram(request, scanId);
+        return "Scan lancé avec ID: " + scanId;
+    }
+
+    /**
+     * Récupère le statut d'un scan à partir de son ID
+     * @param scanId ID du scan
+     * @return Statut du scan
+     */
+    @GetMapping("/status/{scanId}")
+    public String getScanStatus(@PathVariable String scanId) {
+        return cppExecutionService.getScanStatus(scanId);
     }
 }
