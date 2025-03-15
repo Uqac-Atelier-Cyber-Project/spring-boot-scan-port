@@ -1,14 +1,22 @@
 package com.uqac.scan_port.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uqac.scan_port.dto.PortScanResultDTO;
+import com.uqac.scan_port.dto.ServiceRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -24,15 +32,14 @@ public class CppExecutionService {
 
     /**
      * Exécute le programme C++ de scan de ports
-     * @param ip Adresse IP à scanner
+     * @param request Requête de
      * @param scanId Identifiant du scan
      */
-    @Async
-    public void executeCppProgram(String ip, String scanId) {
+    public void executeCppProgram(ServiceRequest request, String scanId) {
         try {
             scanStatus.put(scanId, "IN_PROGRESS");
 
-            ProcessBuilder processBuilder = new ProcessBuilder("src/main/java/com/uqac/scan_port/cppScanPort/port_scanner", ip);
+            ProcessBuilder processBuilder = new ProcessBuilder("src/main/resources/cppScanPort/portScan", request.getReportId()+"", request.getOption(), "1", "1000", "200");
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
 
@@ -45,10 +52,31 @@ public class CppExecutionService {
 
             int exitCode = process.waitFor();
             if (exitCode == 0) {
-                logger.info("Scan terminé pour IP {} : {}", ip, result);
+                logger.info("Scan terminé pour IP {} : {}", request.getOption(), result);
                 scanStatus.put(scanId, "COMPLETED: " + result.toString());
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                PortScanResultDTO scanResult = objectMapper.readValue(result.toString(), PortScanResultDTO.class);
+
+                logger.info(scanResult.toString());
+
+                RestTemplate restTemplate = new RestTemplate();
+                String externalServiceUrl = "http://localhost:8090/report/scanPorts";
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+                HttpEntity<PortScanResultDTO> entity = new HttpEntity<>(scanResult, headers);
+                try {
+                    restTemplate.postForObject(externalServiceUrl, entity, Void.class);
+                } catch (HttpServerErrorException e) {
+                    logger.error("Server error while posting scan result: {}", e.getMessage());
+                    scanStatus.put(scanId, "ERROR: Server error while posting scan result");
+                }
+
             } else {
-                scanStatus.put(scanId, "ERROR: Exit code " + exitCode);
+                scanStatus.put(scanId, "ERROR: Exit code " + exitCode + " - " + result.toString());
             }
         } catch (Exception e) {
             scanStatus.put(scanId, "EXCEPTION: " + e.getMessage());

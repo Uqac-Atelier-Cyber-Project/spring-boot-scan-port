@@ -1,16 +1,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <chrono>
-#include <thread>
-#include <cstring>
+#include <unordered_map> // Pour stocker les associations port/service
 #include <nlohmann/json.hpp>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
 #include <netdb.h>
-#include <fcntl.h>  // Pour fcntl et O_NONBLOCK
-#include <errno.h>  // Pour errno
+#include <unistd.h>
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <cstdlib>
 
 using json = nlohmann::json;
 
@@ -20,216 +18,155 @@ struct PortInfo {
 };
 
 /**
- * @brief Récupérer le nom du service associé à un port
- * @param port   Port à scanner
- * @return     Nom du service associé au port
+ * @brief Récupérer le nom du service associé à un port en utilisant une map statique
  */
 std::string getServiceName(int port) {
+    static const std::unordered_map<int, std::string> serviceMap = {
+        {21, "FTP"}, {22, "SSH"}, {23, "Telnet"}, {25, "SMTP"}, {53, "DNS"},
+        {67, "DHCP Server"}, {68, "DHCP Client"}, {69, "TFTP"}, {80, "HTTP"},
+        {110, "POP3"}, {119, "NNTP"}, {123, "NTP"}, {143, "IMAP"}, {161, "SNMP"},
+        {162, "SNMP Trap"}, {389, "LDAP"}, {443, "HTTPS"}, {465, "SMTPS"},
+        {514, "Syslog"}, {587, "SMTP TLS"}, {636, "LDAPS"}, {989, "FTPS Data"},
+        {990, "FTPS Control"}, {993, "IMAPS"}, {995, "POP3S"}, {1433, "SQL Server"},
+        {1521, "Oracle DB"}, {3306, "MySQL"}, {5432, "PostgreSQL"}, {27017, "MongoDB"},
+        {3389, "RDP"}, {5900, "VNC"}, {6379, "Redis"}, {8080, "HTTP Proxy"},
+        {8443, "HTTPS Alt"}, {9000, "SonarQube / PHP-FPM"}, {9090, "Prometheus / Openfire / Web Server"},
+        {631, "IPP (Internet Printing Protocol)"}, {1716, "KDE Connect"}, {6463, "Discord RPC"},
+        {17500, "Dropbox LAN Sync"}, {17600, "Dropbox"}, {17603, "Dropbox"},
+        {32777, "Docker/Kubernetes Ephemeral Port"}, {35729, "LiveReload"},
+        {63342, "JetBrains IDE Services"}, {1883, "MQTT"}, {8883, "MQTT Secure"},
+        {25565, "Minecraft Server"}, {10000, "Webmin"}
+    };
+
+    // Vérifier si le port est dans la map
+    auto it = serviceMap.find(port);
+    if (it != serviceMap.end()) {
+        return it->second;
+    }
+
+    // Tentative de détection dynamique via getservbyport()
     struct servent *service = getservbyport(htons(port), "tcp");
     if (service) {
         return std::string(service->s_name);
     }
 
-    // Liste des services courants pour les ports connus
-    switch (port) {
-        case 21: return "FTP";
-        case 22: return "SSH";
-        case 23: return "Telnet";
-        case 25: return "SMTP";
-        case 53: return "DNS";
-        case 67: return "DHCP Server";
-        case 68: return "DHCP Client";
-        case 69: return "TFTP";
-        case 80: return "HTTP";
-        case 110: return "POP3";
-        case 119: return "NNTP";
-        case 123: return "NTP";
-        case 143: return "IMAP";
-        case 161: return "SNMP";
-        case 162: return "SNMP Trap";
-        case 389: return "LDAP";
-        case 443: return "HTTPS";
-        case 465: return "SMTPS";
-        case 514: return "Syslog";
-        case 587: return "SMTP TLS";
-        case 636: return "LDAPS";
-        case 989: return "FTPS Data";
-        case 990: return "FTPS Control";
-        case 993: return "IMAPS";
-        case 995: return "POP3S";
-        case 1433: return "SQL Server";
-        case 1521: return "Oracle DB";
-        case 3306: return "MySQL";
-        case 5432: return "PostgreSQL";
-        case 27017: return "MongoDB";
-        case 3389: return "RDP";
-        case 5900: return "VNC";
-        case 6379: return "Redis";
-        case 8080: return "HTTP Proxy";
-        case 8443: return "HTTPS Alt";
-        case 9000: return "SonarQube / PHP-FPM";
-        case 9090: return "Prometheus / Openfire / Web Server";
-        case 631: return "IPP (Internet Printing Protocol)";
-        case 1716: return "KDE Connect";
-        case 6463: return "Discord RPC";
-        case 17500: return "Dropbox LAN Sync";
-        case 17600: return "Dropbox";
-        case 17603: return "Dropbox";
-        case 32777: return "Docker/Kubernetes Ephemeral Port";
-        case 35729: return "LiveReload";
-        case 63342: return "JetBrains IDE Services";
-        case 1883: return "MQTT";
-        case 8883: return "MQTT Secure";
-        case 25565: return "Minecraft Server";
-        case 10000: return "Webmin";
-        default: return "unknown";
-    }
+    return "Unknown";
 }
 
-
 /**
- *  @brief Vérifier si un port est ouvert sur un hôte
- * @param host  Adresse IP ou nom d'hôte
- * @param port  Port à scanner
- * @param timeout_ms  Timeout en millisecondes
- * @return  true si le port est ouvert, false sinon
+ * @brief Vérifier si un port est ouvert sur un hôte
  */
 bool isPortOpen(const std::string &host, int port, int timeout_ms) {
     struct sockaddr_in addr;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        return false;
-    }
+    if (sock < 0) return false;
 
-    // Configuration du timeout
     struct timeval timeout;
     timeout.tv_sec = timeout_ms / 1000;
     timeout.tv_usec = (timeout_ms % 1000) * 1000;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
-    // Configuration du socket en non-bloquant
-    int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
-    // Préparation de l'adresse
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
 
     if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) <= 0) {
-        // Si l'adresse IP n'est pas valide, essayer de résoudre le nom d'hôte
         struct hostent *he = gethostbyname(host.c_str());
-        if (he == nullptr) {
+        if (!he) {
             close(sock);
             return false;
         }
         memcpy(&addr.sin_addr, he->h_addr, he->h_length);
     }
 
-    // Tentative de connexion
     int res = connect(sock, (struct sockaddr *) &addr, sizeof(addr));
-
-    if (res < 0) {
-        if (errno == EINPROGRESS) {
-            // Attente de connexion avec select
-            fd_set fdset;
-            FD_ZERO(&fdset);
-            FD_SET(sock, &fdset);
-
-            res = select(sock + 1, NULL, &fdset, NULL, &timeout);
-            if (res > 0) {
-                // Vérifier si la connexion a réussi
-                int so_error;
-                socklen_t len = sizeof(so_error);
-                getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len);
-                if (so_error == 0) {
-                    close(sock);
-                    return true;
-                }
-            }
-        }
-        close(sock);
-        return false;
-    }
-
     close(sock);
-    return true;
+    return res == 0;
 }
 
-
 /**
- *  @brief Scanner les ports d'un hôte
- * @param host  Adresse IP ou nom d'hôte
- * @param start_port  Port de début
- * @param end_port  Port de fin
- * @param timeout_ms  Timeout en millisecondes
- * @return  Liste des ports ouverts
+ * @brief Scanner les ports d'un hôte
  */
 std::vector<PortInfo> scanPorts(const std::string &host, int start_port, int end_port, int timeout_ms) {
     std::vector<PortInfo> openPorts;
-
-    // std::cout << "Scanning ports " << start_port << " to " << end_port
-    //         << " on " << host << " (timeout: " << timeout_ms << "ms)" << std::endl;
-
     for (int port = start_port; port <= end_port; ++port) {
-        //std::cout << "\rScanning port " << port << "..." << std::flush;
-
         if (isPortOpen(host, port, timeout_ms)) {
-            PortInfo info;
-            info.port = port;
-            info.service = getServiceName(port);
-            openPorts.push_back(info);
-
-            //std::cout << "\rPort " << port << " is open (" << info.service << ")" << std::endl;
+            openPorts.push_back({port, getServiceName(port)});
         }
     }
-
-    //std::cout << "\rScan completed.                      " << std::endl;
     return openPorts;
 }
 
 /**
- *  @brief Fonction principale
- * @param argc  Nombre d'arguments
- * @param argv  Tableau des arguments
- * @return  Code de retour
+ * @brief Fonction principale
  */
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <host> [start_port] [end_port] [timeout_ms]" << std::endl;
-        std::cerr << "Example: " << argv[0] << " 192.168.1.1 1 1024 200" << std::endl;
+    if (argc < 6) {
+        json result = {
+            {"reportId", -1},
+            {"host", ""},
+            {"message", "Invalid arguments"},
+            {"error", "Usage: <reportId> <host> <start_port> <end_port> <timeout_ms>"},
+            {"scanRange", {{"start", 0}, {"end", 0}}},
+            {"open_ports", json::array()}
+        };
+        std::cout << result.dump(4) << std::endl;
         return 1;
     }
 
-    std::string host = argv[1];
-    int start_port = (argc > 2) ? std::stoi(argv[2]) : 1;
-    int end_port = (argc > 3) ? std::stoi(argv[3]) : 65535;
-    int timeout_ms = (argc > 4) ? std::stoi(argv[4]) : 200;
+    // Validate reportId
+    char *endptr;
+    long reportId = std::strtol(argv[1], &endptr, 10);
+    if (*endptr != '\0' || reportId <= 0) {
+        json result = {
+            {"reportId", -1},
+            {"host", ""},
+            {"message", "Invalid reportId"},
+            {"error", "reportId must be a positive integer"},
+            {"scanRange", {{"start", 0}, {"end", 0}}},
+            {"openPorts", json::array()}
+        };
+        std::cout << result.dump(4) << std::endl;
+        return 1;
+    }
 
+    std::string host = argv[2];
+    int start_port = std::stoi(argv[3]);
+    int end_port = std::stoi(argv[4]);
+    int timeout_ms = (argc > 5) ? std::stoi(argv[5]) : 200;
+
+    // Start port scanning
     try {
-        // Scanner les ports
         std::vector<PortInfo> openPorts = scanPorts(host, start_port, end_port, timeout_ms);
 
-        // Créer l'objet JSON
-        json result;
-        result["host"] = host;
-        result["scan_range"] = {{"start", start_port}, {"end", end_port}};
-        result["open_ports"] = json::array();
+        json result = {
+            {"reportId", reportId},
+            {"host", host},
+            {"message", "Scan completed"},
+            {"error", ""},
+            {"scanRange", {{"start", start_port}, {"end", end_port}}},
+            {"openPorts", json::array()}
+        };
 
         for (const auto &port: openPorts) {
-            json portInfo;
-            portInfo["port"] = port.port;
-            portInfo["service"] = port.service;
-            result["open_ports"].push_back(portInfo);
+            result["openPorts"].push_back({{"port", port.port}, {"service", port.service}});
         }
 
-        // Afficher le résultat JSON
-        std::cout << std::endl << result.dump(4) << std::endl;
+        std::cout << result.dump(4) << std::endl;
     } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        json result = {
+            {"reportId", reportId},
+            {"host", host},
+            {"message", "Error during scan"},
+            {"error", e.what()},
+            {"scanRange", {{"start", start_port}, {"end", end_port}}},
+            {"openPorts", json::array()}
+        };
+        std::cout << result.dump(4) << std::endl;
         return 1;
     }
 
     return 0;
 }
+

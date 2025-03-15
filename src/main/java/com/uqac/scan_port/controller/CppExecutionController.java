@@ -1,5 +1,6 @@
 package com.uqac.scan_port.controller;
 
+import com.uqac.scan_port.dto.ServiceRequest;
 import com.uqac.scan_port.service.CppExecutionService;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +22,13 @@ public class CppExecutionController {
 
     /**
      * Lance un scan de ports en C++ pour une adresse IP donnée
-     * @param ip Adresse IP à scanner
+     * @param request Requête de soumission
      * @return Message de confirmation
      */
-    @GetMapping("/execute-cpp")
-    public String executeCpp(@RequestParam String ip) {
+    @PostMapping("/execute-cpp")
+    public String executeCpp(@RequestBody ServiceRequest request) {
         String scanId = UUID.randomUUID().toString(); // Génère un identifiant unique
-        cppExecutionService.executeCppProgram(ip, scanId);
+        cppExecutionService.executeCppProgram(request, scanId);
         return "Scan lancé avec ID: " + scanId;
     }
 
