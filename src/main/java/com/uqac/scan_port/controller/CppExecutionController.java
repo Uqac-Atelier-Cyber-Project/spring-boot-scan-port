@@ -27,9 +27,9 @@ public class CppExecutionController {
      */
     @PostMapping("/execute-cpp")
     public String executeCpp(@RequestBody ServiceRequest request) {
-        String scanId = UUID.randomUUID().toString(); // Génère un identifiant unique
+        String scanId = UUID.randomUUID().toString();
         cppExecutionService.executeCppProgram(request, scanId);
-        return "Scan lancé avec ID: " + scanId;
+        return "Scan launched with ID: " + scanId;
     }
 
     /**

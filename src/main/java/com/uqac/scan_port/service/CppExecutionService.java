@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.BufferedReader;
@@ -35,7 +36,9 @@ public class CppExecutionService {
      * @param request Requête de
      * @param scanId Identifiant du scan
      */
+    @Async
     public void executeCppProgram(ServiceRequest request, String scanId) {
+        logger.info("Executing cpp program with ID: {}", scanId);
         try {
             scanStatus.put(scanId, "IN_PROGRESS");
 
@@ -55,29 +58,33 @@ public class CppExecutionService {
                 logger.info("Scan terminé pour IP {} : {}", request.getOption(), result);
                 scanStatus.put(scanId, "COMPLETED: " + result.toString());
 
-                ObjectMapper objectMapper = new ObjectMapper();
-                PortScanResultDTO scanResult = objectMapper.readValue(result.toString(), PortScanResultDTO.class);
-
-                logger.info(scanResult.toString());
-
-                RestTemplate restTemplate = new RestTemplate();
-                String externalServiceUrl = "http://localhost:8090/report/scanPorts";
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-
-                HttpEntity<PortScanResultDTO> entity = new HttpEntity<>(scanResult, headers);
-                try {
-                    restTemplate.postForObject(externalServiceUrl, entity, Void.class);
-                } catch (HttpServerErrorException e) {
-                    logger.error("Server error while posting scan result: {}", e.getMessage());
-                    scanStatus.put(scanId, "ERROR: Server error while posting scan result");
-                }
-
             } else {
                 scanStatus.put(scanId, "ERROR: Exit code " + exitCode + " - " + result.toString());
+                logger.error("Erreur lors de l'exécution du scan : {}", result);
             }
+            ObjectMapper objectMapper = new ObjectMapper();
+            PortScanResultDTO scanResult = objectMapper.readValue(result.toString(), PortScanResultDTO.class);
+
+            logger.info(scanResult.toString());
+
+            RestTemplate restTemplate = new RestTemplate();
+            String externalServiceUrl = "http://localhost:8090/report/scanPorts";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+            HttpEntity<PortScanResultDTO> entity = new HttpEntity<>(scanResult, headers);
+            try {
+                restTemplate.postForObject(externalServiceUrl, entity, Void.class);
+            } catch (ResourceAccessException e) {
+                logger.error("Resource access error while posting scan result: {}", e.getMessage());
+                scanStatus.put(scanId, "ERROR: Resource access error while posting scan result");
+            } catch (HttpServerErrorException e) {
+                logger.error("Server error while posting scan result: {}", e.getMessage());
+                scanStatus.put(scanId, "ERROR: Server error while posting scan result");
+            }
+
         } catch (Exception e) {
             scanStatus.put(scanId, "EXCEPTION: " + e.getMessage());
             logger.error("Erreur lors de l'exécution du scan", e);
