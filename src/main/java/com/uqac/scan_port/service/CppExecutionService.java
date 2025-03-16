@@ -1,5 +1,6 @@
 package com.uqac.scan_port.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uqac.scan_port.dto.PortScanResultDTO;
 import com.uqac.scan_port.dto.ServiceRequest;
@@ -62,32 +63,42 @@ public class CppExecutionService {
                 scanStatus.put(scanId, "ERROR: Exit code " + exitCode + " - " + result.toString());
                 logger.error("Erreur lors de l'exécution du scan : {}", result);
             }
-            ObjectMapper objectMapper = new ObjectMapper();
-            PortScanResultDTO scanResult = objectMapper.readValue(result.toString(), PortScanResultDTO.class);
-
-            logger.info(scanResult.toString());
-
-            RestTemplate restTemplate = new RestTemplate();
-            String externalServiceUrl = "http://localhost:8090/report/scanPorts";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-
-            HttpEntity<PortScanResultDTO> entity = new HttpEntity<>(scanResult, headers);
-            try {
-                restTemplate.postForObject(externalServiceUrl, entity, Void.class);
-            } catch (ResourceAccessException e) {
-                logger.error("Resource access error while posting scan result: {}", e.getMessage());
-                scanStatus.put(scanId, "ERROR: Resource access error while posting scan result");
-            } catch (HttpServerErrorException e) {
-                logger.error("Server error while posting scan result: {}", e.getMessage());
-                scanStatus.put(scanId, "ERROR: Server error while posting scan result");
-            }
+            callExternalService(scanId, result);
 
         } catch (Exception e) {
             scanStatus.put(scanId, "EXCEPTION: " + e.getMessage());
             logger.error("Erreur lors de l'exécution du scan", e);
+        }
+    }
+
+    /**
+     * Appelle un service externe pour envoyer le résultat du scan
+     * @param scanId Identifiant du scan
+     * @param result Résultat du scan
+     * @throws JsonProcessingException Exception lors de la conversion en JSON
+     */
+    private void callExternalService(String scanId, StringBuilder result) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PortScanResultDTO scanResult = objectMapper.readValue(result.toString(), PortScanResultDTO.class);
+
+        logger.info(scanResult.toString());
+
+        RestTemplate restTemplate = new RestTemplate();
+        String externalServiceUrl = "http://localhost:8090/report/scanPorts";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+        HttpEntity<PortScanResultDTO> entity = new HttpEntity<>(scanResult, headers);
+        try {
+            restTemplate.postForObject(externalServiceUrl, entity, Void.class);
+        } catch (ResourceAccessException e) {
+            logger.error("Resource access error while posting scan result: {}", e.getMessage());
+            scanStatus.put(scanId, "ERROR: Resource access error while posting scan result");
+        } catch (HttpServerErrorException e) {
+            logger.error("Server error while posting scan result: {}", e.getMessage());
+            scanStatus.put(scanId, "ERROR: Server error while posting scan result");
         }
     }
 
