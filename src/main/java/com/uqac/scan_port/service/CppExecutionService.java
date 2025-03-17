@@ -43,7 +43,7 @@ public class CppExecutionService {
         try {
             scanStatus.put(scanId, "IN_PROGRESS");
 
-            ProcessBuilder processBuilder = new ProcessBuilder("src/main/resources/cppScanPort/portScan", request.getReportId()+"", request.getOption(), "1", "1000", "200");
+            ProcessBuilder processBuilder = new ProcessBuilder("src/main/resources/cppScanPort/portScan", request.getReportId()+"", request.getOption(), "1", "100", "200");
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
 
@@ -52,6 +52,7 @@ public class CppExecutionService {
             String line;
             while ((line = reader.readLine()) != null) {
                 result.append(line).append("\n");
+                logger.info(line);
             }
 
             int exitCode = process.waitFor();
