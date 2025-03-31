@@ -14,7 +14,8 @@ public class CppExecutionController {
 
     /**
      * Constructeur
-     * @param cppExecutionService
+     *
+     * @param cppExecutionService Service d'exécution C++
      */
     public CppExecutionController(CppExecutionService cppExecutionService) {
         this.cppExecutionService = cppExecutionService;
@@ -22,6 +23,7 @@ public class CppExecutionController {
 
     /**
      * Lance un scan de ports en C++ pour une adresse IP donnée
+     *
      * @param request Requête de soumission
      * @return Message de confirmation
      */
@@ -34,6 +36,7 @@ public class CppExecutionController {
 
     /**
      * Récupère le statut d'un scan à partir de son ID
+     *
      * @param scanId ID du scan
      * @return Statut du scan
      */

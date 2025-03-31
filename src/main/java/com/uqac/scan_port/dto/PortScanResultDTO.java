@@ -17,7 +17,8 @@ public class PortScanResultDTO {
     private List<PortInfoDTO> openPorts;
 
     // Constructeurs
-    public PortScanResultDTO() {}
+    public PortScanResultDTO() {
+    }
 
     public PortScanResultDTO(Long reportId, String host, String message, String error, ScanRangeDTO scanRange, List<PortInfoDTO> openPorts) {
         this.reportId = reportId;

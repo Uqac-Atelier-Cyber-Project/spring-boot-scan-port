@@ -43,7 +43,7 @@ public class CppExecutionService {
         try {
             scanStatus.put(scanId, "IN_PROGRESS");
 
-            ProcessBuilder processBuilder = new ProcessBuilder("src/main/resources/cppScanPort/portScan", request.getReportId()+"", request.getOption(), "1", "100", "200");
+            ProcessBuilder processBuilder = new ProcessBuilder("src/main/resources/cppScanPort/portScan", request.getReportId()+"", request.getOption(), "1", "10000", "200");
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
 
@@ -58,10 +58,10 @@ public class CppExecutionService {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 logger.info("Scan terminé pour IP {} : {}", request.getOption(), result);
-                scanStatus.put(scanId, "COMPLETED: " + result.toString());
+                scanStatus.put(scanId, "COMPLETED: " + result);
 
             } else {
-                scanStatus.put(scanId, "ERROR: Exit code " + exitCode + " - " + result.toString());
+                scanStatus.put(scanId, "ERROR: Exit code " + exitCode + " - " + result);
                 logger.error("Erreur lors de l'exécution du scan : {}", result);
             }
             callExternalService(scanId, result);

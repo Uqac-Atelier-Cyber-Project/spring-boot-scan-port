@@ -11,7 +11,8 @@ public class PortInfoDTO {
     private String service;
 
     // Constructeurs
-    public PortInfoDTO() {}
+    public PortInfoDTO() {
+    }
 
     public PortInfoDTO(int port, String service) {
         this.port = port;
