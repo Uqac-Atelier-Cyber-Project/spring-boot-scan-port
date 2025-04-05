@@ -69,6 +69,15 @@ java -jar target/spring-boot-scan-port-0.0.1-SNAPSHOT.jar
       }
       ```
 
+4. Generation du JAR et parametrage
+
+```bash
+mvn clean package
+mvn package
+java -jar target/spring-boot-scan-port-0.0.1-SNAPSHOT.jar --api.externe.url=<URL_MAIN_SERVER_API> --server.port=<PORT>
+```
+
+
 ## Structure du Projet
 - `src/main/java/com/uqac/scan_port` : Contient le code source Java de l'application.
 - `src/main/resources/cppScanPort` : Contient le code source C++ pour le scan de ports.
