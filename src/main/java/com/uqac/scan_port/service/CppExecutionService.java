@@ -69,7 +69,7 @@ public class CppExecutionService {
                     executableFile.getAbsolutePath(),
                     request.getReportId() + "",
                     request.getOption(),
-                    "1", "10000", "200"
+                    "1", "65353", "200"
             );
             processBuilder.redirectErrorStream(true);
 
